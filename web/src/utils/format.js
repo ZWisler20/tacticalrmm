@@ -1,63 +1,84 @@
 import { date } from "quasar";
-import { validateTimePeriod } from "@/utils/validation"
+import { validateTimePeriod } from "@/utils/validation";
 
 // dropdown options formatting
 
 export function removeExtraOptionCategories(array) {
-  let tmp = []
+  let tmp = [];
   // loop through options and if two categories are next to each other remove the top one
   for (let i = 0; i < array.length; i++) {
-    if (i === array.length - 1) { // check if last item is not a category and add it
-      if (!array[i].category) tmp.push(array[i])
+    if (i === array.length - 1) {
+      // check if last item is not a category and add it
+      if (!array[i].category) tmp.push(array[i]);
     } else if (!(array[i].category && array[i + 1].category)) {
-      tmp.push(array[i])
+      tmp.push(array[i]);
     }
   }
-  return tmp
+  return tmp;
 }
 
-function _formatOptions(data, { label, value = "id", flat = false, allowDuplicates = true }) {
+function _formatOptions(
+  data,
+  { label, value = "id", flat = false, allowDuplicates = true }
+) {
   if (!flat)
     // returns array of options in object format [{label: label, value: 1}]
-    return data.map(i => ({ label: i[label], value: i[value] }));
-  else
-    // returns options as an array of strings ["label", "label1"]
-    if (!allowDuplicates)
-      return data.map(i => i[label]);
-    else {
-      const options = []
-      data.forEach(i => {
-        if (!options.includes(i[label]))
-          options.push(i[label])
-      });
-      return options
-    }
+    return data.map((i) => ({ label: i[label], value: i[value] }));
+  // returns options as an array of strings ["label", "label1"]
+  else if (!allowDuplicates) return data.map((i) => i[label]);
+  else {
+    const options = [];
+    data.forEach((i) => {
+      if (!options.includes(i[label])) options.push(i[label]);
+    });
+    return options;
+  }
 }
 
 export function formatScriptOptions(data) {
   let options = [];
   let categories = [];
-  let create_unassigned = false
-  data.forEach(script => {
+  let create_unassigned = false;
+  data.forEach((script) => {
     if (!!script.category && !categories.includes(script.category)) {
       categories.push(script.category);
     } else if (!script.category) {
-      create_unassigned = true
+      create_unassigned = true;
     }
   });
 
-  if (create_unassigned) categories.push("Unassigned")
+  if (create_unassigned) categories.push("Unassigned");
 
-  categories.sort().forEach(cat => {
+  categories.sort().forEach((cat) => {
     options.push({ category: cat });
     let tmp = [];
-    data.forEach(script => {
+    data.forEach((script) => {
       if (script.category === cat) {
-        tmp.push({ label: script.name, value: script.id, timeout: script.default_timeout, args: script.args, filename: script.filename, syntax: script.syntax, script_type: script.script_type, shell: script.shell, supported_platforms: script.supported_platforms });
+        tmp.push({
+          label: script.name,
+          value: script.id,
+          timeout: script.default_timeout,
+          args: script.args,
+          filename: script.filename,
+          syntax: script.syntax,
+          script_type: script.script_type,
+          shell: script.shell,
+          supported_platforms: script.supported_platforms,
+        });
       } else if (cat === "Unassigned" && !script.category) {
-        tmp.push({ label: script.name, value: script.id, timeout: script.default_timeout, args: script.args, filename: script.filename, syntax: script.syntax, script_type: script.script_type, shell: script.shell, supported_platforms: script.supported_platforms });
+        tmp.push({
+          label: script.name,
+          value: script.id,
+          timeout: script.default_timeout,
+          args: script.args,
+          filename: script.filename,
+          syntax: script.syntax,
+          script_type: script.script_type,
+          shell: script.shell,
+          supported_platforms: script.supported_platforms,
+        });
       }
-    })
+    });
     const sorted = tmp.sort((a, b) => a.label.localeCompare(b.label));
     options.push(...sorted);
   });
@@ -65,31 +86,39 @@ export function formatScriptOptions(data) {
   return options;
 }
 
-export function formatAgentOptions(data, flat = false, value_field = "agent_id") {
-
+export function formatAgentOptions(
+  data,
+  flat = false,
+  value_field = "agent_id"
+) {
   if (flat) {
     // returns just agent hostnames in array
-    return _formatOptions(data, { label: "hostname", value: value_field, flat: true, allowDuplicates: false })
+    return _formatOptions(data, {
+      label: "hostname",
+      value: value_field,
+      flat: true,
+      allowDuplicates: false,
+    });
   } else {
     // returns options with categories in object format
-    let options = []
-    const agents = data.map(agent => ({
+    let options = [];
+    const agents = data.map((agent) => ({
       label: agent.hostname,
       value: agent[value_field],
       cat: `${agent.client} > ${agent.site}`,
     }));
 
     let categories = [];
-    agents.forEach(option => {
+    agents.forEach((option) => {
       if (!categories.includes(option.cat)) {
         categories.push(option.cat);
       }
     });
 
-    categories.sort().forEach(cat => {
+    categories.sort().forEach((cat) => {
       options.push({ category: cat });
-      let tmp = []
-      agents.forEach(agent => {
+      let tmp = [];
+      agents.forEach((agent) => {
         if (agent.cat === cat) {
           tmp.push(agent);
         }
@@ -99,58 +128,62 @@ export function formatAgentOptions(data, flat = false, value_field = "agent_id")
       options.push(...sorted);
     });
 
-    return options
+    return options;
   }
 }
 
 export function formatCustomFieldOptions(data, flat = false) {
   if (flat) {
-    return _formatOptions(data, { label: "name", flat: true })
-  }
-  else {
-    const categories = ["Client", "Site", "Agent"]
-    const options = []
+    return _formatOptions(data, { label: "name", flat: true });
+  } else {
+    const categories = ["Client", "Site", "Agent"];
+    const options = [];
 
-    categories.forEach(cat => {
+    categories.forEach((cat) => {
       options.push({ category: cat });
       const tmp = [];
-      data.forEach(custom_field => {
+      data.forEach((custom_field) => {
         if (custom_field.model === cat.toLowerCase()) {
-          tmp.push({ label: custom_field.name, value: custom_field.id })
+          tmp.push({ label: custom_field.name, value: custom_field.id });
         }
       });
 
       const sorted = tmp.sort((a, b) => a.label.localeCompare(b.label));
       options.push(...sorted);
-    })
+    });
 
-    return options
+    return options;
   }
 }
 
 export function formatClientOptions(data, flat = false) {
-  return _formatOptions(data, { label: "name", flat: flat })
+  return _formatOptions(data, { label: "name", flat: flat });
 }
 
 export function formatSiteOptions(data, flat = false) {
-  const options = []
+  const options = [];
 
-  data.forEach(client => {
+  data.forEach((client) => {
     options.push({ category: client.name });
-    options.push(..._formatOptions(client.sites, { label: "name", flat: flat }))
+    options.push(
+      ..._formatOptions(client.sites, { label: "name", flat: flat })
+    );
   });
 
-  return options
+  return options;
+}
+
+export function formatGroupOptions(data, flat = false) {
+  return _formatOptions(data, { label: "name", flat: flat });
 }
 
 export function formatUserOptions(data, flat = false) {
-  return _formatOptions(data, { label: "username", flat: flat })
+  return _formatOptions(data, { label: "username", flat: flat });
 }
 
 export function formatCheckOptions(data, flat = false) {
-  return _formatOptions(data, { label: "readable_desc", flat: flat })
+  return _formatOptions(data, { label: "readable_desc", flat: flat });
 }
-
 
 export function formatCustomFields(fields, values) {
   let tempArray = [];
@@ -164,18 +197,26 @@ export function formatCustomFields(fields, values) {
       tempArray.push({ string_value: values[field.name], field: field.id });
     }
   }
-  return tempArray
+  return tempArray;
 }
 
 export function formatScriptSyntax(syntax) {
-  let temp = syntax
-  temp = temp.replaceAll("<", "&lt;").replaceAll(">", "&gt;")
-  temp = temp.replaceAll("&lt;", `<span style="color:#d4d4d4">&lt;</span>`).replaceAll("&gt;", `<span style="color:#d4d4d4">&gt;</span>`)
-  temp = temp.replaceAll("[", `<span style="color:#ffd70a">[</span>`).replaceAll("]", `<span style="color:#ffd70a">]</span>`)
-  temp = temp.replaceAll("(", `<span style="color:#87cefa">(</span>`).replaceAll(")", `<span style="color:#87cefa">)</span>`)
-  temp = temp.replaceAll("{", `<span style="color:#c586b6">{</span>`).replaceAll("}", `<span style="color:#c586b6">}</span>`)
-  temp = temp.replaceAll("\n", `<br />`)
-  return temp
+  let temp = syntax;
+  temp = temp.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  temp = temp
+    .replaceAll("&lt;", `<span style="color:#d4d4d4">&lt;</span>`)
+    .replaceAll("&gt;", `<span style="color:#d4d4d4">&gt;</span>`);
+  temp = temp
+    .replaceAll("[", `<span style="color:#ffd70a">[</span>`)
+    .replaceAll("]", `<span style="color:#ffd70a">]</span>`);
+  temp = temp
+    .replaceAll("(", `<span style="color:#87cefa">(</span>`)
+    .replaceAll(")", `<span style="color:#87cefa">)</span>`);
+  temp = temp
+    .replaceAll("{", `<span style="color:#c586b6">{</span>`)
+    .replaceAll("}", `<span style="color:#c586b6">}</span>`);
+  temp = temp.replaceAll("\n", `<br />`);
+  return temp;
 }
 
 // date formatting
@@ -208,7 +249,7 @@ export function dateStringToUnix(drfString) {
 
 // takes a unix timestamp and converts it to quasar datetime field value YYYY-MM-DD HH:mm:ss
 export function formatDateInputField(unixtimestamp) {
-  return date.formatDate(unixtimestamp, "YYYY-MM-DD HH:mm:ss")
+  return date.formatDate(unixtimestamp, "YYYY-MM-DD HH:mm:ss");
 }
 
 // string formatting
@@ -218,17 +259,16 @@ export function capitalize(string) {
 }
 
 export function formatTableColumnText(text) {
-
-  let string = ""
+  let string = "";
   // split at underscore if exists
-  const words = text.split("_")
-  words.forEach(word => string = string + " " + capitalize(word))
+  const words = text.split("_");
+  words.forEach((word) => (string = string + " " + capitalize(word)));
 
-  return string.trim()
+  return string.trim();
 }
 
 export function truncateText(txt, chars) {
-  if (!txt) return
+  if (!txt) return;
 
   return txt.length >= chars ? txt.substring(0, chars) + "..." : txt;
 }
@@ -249,47 +289,49 @@ export function convertMemoryToPercent(percent, memory) {
 // convert time period(str) to seconds(int) (3h -> 10800) used for comparing time intervals
 export function convertPeriodToSeconds(period) {
   if (!validateTimePeriod(period)) {
-    console.error("Time Period is invalid")
-    return NaN
+    console.error("Time Period is invalid");
+    return NaN;
   }
 
   if (period.toUpperCase().includes("S"))
     // remove last letter from string and return since already in seconds
-    return parseInt(period.slice(0, -1))
+    return parseInt(period.slice(0, -1));
   else if (period.toUpperCase().includes("M"))
     // remove last letter from string and multiple by 60 to get seconds
-    return parseInt(period.slice(0, -1)) * 60
+    return parseInt(period.slice(0, -1)) * 60;
   else if (period.toUpperCase().includes("H"))
     // remove last letter from string and multiple by 60 twice to get seconds
-    return parseInt(period.slice(0, -1)) * 60 * 60
+    return parseInt(period.slice(0, -1)) * 60 * 60;
   else if (period.toUpperCase().includes("D"))
     // remove last letter from string and multiply by 24 and 60 twice to get seconds
-    return parseInt(period.slice(0, -1)) * 24 * 60 * 60
+    return parseInt(period.slice(0, -1)) * 24 * 60 * 60;
 }
 
 // takes an integer and converts it to an array in binary format. i.e: 13 -> [8, 4, 1]
 // Needed to work with multi-select fields in tasks form
 export function convertToBitArray(number) {
-  let bitArray = []
-  let binary = number.toString(2)
+  let bitArray = [];
+  let binary = number.toString(2);
   for (let i = 0; i < binary.length; ++i) {
     if (binary[i] !== "0") {
       // last binary digit
       if (binary.slice(i).length === 1) {
-        bitArray.push(1)
+        bitArray.push(1);
       } else {
-        bitArray.push(parseInt(binary.slice(i), 2) - parseInt(binary.slice(i + 1), 2))
+        bitArray.push(
+          parseInt(binary.slice(i), 2) - parseInt(binary.slice(i + 1), 2)
+        );
       }
     }
   }
-  return bitArray
+  return bitArray;
 }
 
 // takes an array of integers and adds them together
 export function convertFromBitArray(array) {
-  let result = 0
+  let result = 0;
   for (let i = 0; i < array.length; i++) {
-    result += array[i]
+    result += array[i];
   }
-  return result
+  return result;
 }

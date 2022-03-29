@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.models.fields import CharField, DateTimeField
 from logs.models import BaseAuditModel
+from django.contrib.postgres.fields import ArrayField
 
 AGENT_DBLCLICK_CHOICES = [
     ("editagent", "Edit Agent"),
@@ -124,6 +125,16 @@ class Role(BaseAuditModel):
     )
     can_view_sites = models.ManyToManyField(
         "clients.Site", related_name="role_sites", blank=True
+    )
+
+    #groups
+    can_list_groups = models.BooleanField(default=False)
+    can_manage_groups = models.BooleanField(default=False)
+    can_view_groups = ArrayField(
+        models.IntegerField(null=False, blank=False),
+        null=False,
+        blank=True,
+        default=list,
     )
 
     # automation

@@ -7,6 +7,22 @@
       </q-item-section>
       <q-item-section>Edit {{ agent.hostname }}</q-item-section>
     </q-item>
+    <!-- Add To Group -->
+    <q-item clickable v-close-popup>
+      <q-item-section side>
+        <q-icon size="xs" name="fas fa-share-square" />
+      </q-item-section>
+      <q-item-section
+        v-if="!filter(agent.groups)"
+        @click="showAddAgentToGroup(agent)"
+        >Send To Group</q-item-section
+      >
+      <q-item-section
+        v-else
+        @click="showRemoveAgentFromGroup(agent, get_group(agent.groups))"
+        >Remove From Group</q-item-section
+      >
+    </q-item>
     <!-- agent pending actions -->
     <q-item clickable v-close-popup @click="showPendingActionsModal(agent)">
       <q-item-section side>
@@ -15,7 +31,12 @@
       <q-item-section>Pending Agent Actions</q-item-section>
     </q-item>
     <!-- take control -->
-    <q-item clickable v-ripple v-close-popup @click="runTakeControl(agent.agent_id)">
+    <q-item
+      clickable
+      v-ripple
+      v-close-popup
+      @click="runTakeControl(agent.agent_id)"
+    >
       <q-item-section side>
         <q-icon size="xs" name="fas fa-desktop" />
       </q-item-section>
@@ -39,7 +60,9 @@
             dense
             clickable
             v-close-popup
-            @click="runURLAction({ agent_id: agent.agent_id, action: action.id })"
+            @click="
+              runURLAction({ agent_id: agent.agent_id, action: action.id })
+            "
           >
             {{ action.name }}
           </q-item>
@@ -85,7 +108,11 @@
       </q-menu>
     </q-item>
 
-    <q-item clickable v-close-popup @click="runRemoteBackground(agent.agent_id, agent.plat)">
+    <q-item
+      clickable
+      v-close-popup
+      @click="runRemoteBackground(agent.agent_id, agent.plat)"
+    >
       <q-item-section side>
         <q-icon size="xs" name="fas fa-cogs" />
       </q-item-section>
@@ -98,7 +125,11 @@
         <q-icon size="xs" name="construction" />
       </q-item-section>
       <q-item-section>
-        {{ agent.maintenance_mode ? "Disable Maintenance Mode" : "Enable Maintenance Mode" }}
+        {{
+          agent.maintenance_mode
+            ? "Disable Maintenance Mode"
+            : "Enable Maintenance Mode"
+        }}
       </q-item-section>
     </q-item>
 
@@ -200,6 +231,7 @@ import { runAgentUpdateScan, runAgentUpdateInstall } from "@/api/winupdates";
 import { runAgentChecks } from "@/api/checks";
 import { fetchScripts } from "@/api/scripts";
 import { notifySuccess, notifyWarning, notifyError } from "@/utils/notify";
+import { removeGroupMember } from "@/api/groups";
 
 // ui imports
 import PendingActions from "@/components/logs/PendingActions";
@@ -207,6 +239,7 @@ import AgentRecovery from "@/components/modals/agents/AgentRecovery";
 import PolicyAdd from "@/components/automation/modals/PolicyAdd";
 import RebootLater from "@/components/modals/agents/RebootLater";
 import EditAgent from "@/components/modals/agents/EditAgent";
+import AddAgentGroup from "@/components/modals/groups/AddAgentGroup";
 import SendCommand from "@/components/modals/agents/SendCommand";
 import RunScript from "@/components/modals/agents/RunScript";
 
@@ -237,6 +270,37 @@ export default {
       }).onOk(refreshDashboard);
     }
 
+    function showAddAgentToGroup(agent_id) {
+      $q.dialog({
+        component: AddAgentGroup,
+        componentProps: {
+          agent: agent_id,
+        },
+      }).onOk(refreshDashboard);
+    }
+    function showRemoveAgentFromGroup(agent, group_id) {
+      $q.dialog({
+        title: "Are you sure?",
+        message: `Remove ${agent.hostname} from the group?`,
+        cancel: true,
+        ok: { label: "Remove", color: "negative" },
+      }).onOk(async () => {
+        $q.loading.show();
+        try {
+          const result = await removeGroupMember(agent.agent_id, {
+            group_id: group_id,
+          });
+          result.status
+            ? notifySuccess(result.message)
+            : notifyError(result.message);
+          store.dispatch("refreshDashboard");
+        } catch (e) {
+          console.error(e);
+        }
+        $q.loading.hide();
+      });
+    }
+
     function showPendingActionsModal(agent) {
       $q.dialog({
         component: PendingActions,
@@ -246,13 +310,35 @@ export default {
       });
     }
 
+    function filter(groups) {
+      if (
+        store.state.selectedTree.split("|")[0] == "Client" ||
+        store.state.selectedTree.split("|")[0] == "Site"
+      ) {
+        return false;
+      } else {
+        return groups.filter(
+          (n) => n === parseInt(store.state.selectedTree.split("|")[1])
+        ).length === 0
+          ? false
+          : true;
+      }
+    }
+    function get_group(groups) {
+      return groups.filter(
+        (n) => n === parseInt(store.state.selectedTree.split("|")[1])
+      )[0];
+    }
+
     async function getURLActions() {
       menuLoading.value = true;
       try {
         urlActions.value = await fetchURLActions();
 
         if (urlActions.value.length === 0) {
-          notifyWarning("No URL Actions configured. Go to Settings > Global Settings > URL Actions");
+          notifyWarning(
+            "No URL Actions configured. Go to Settings > Global Settings > URL Actions"
+          );
           return;
         }
       } catch (e) {}
@@ -283,9 +369,11 @@ export default {
 
       menuLoading.value = true;
       try {
-        const data = await fetchScripts({ showCommunityScripts: store.state.showCommunityScripts });
+        const data = await fetchScripts({
+          showCommunityScripts: store.state.showCommunityScripts,
+        });
 
-        const scripts = data.filter(script => !!script.favorite);
+        const scripts = data.filter((script) => !!script.favorite);
 
         if (scripts.length === 0) {
           notifyWarning("You don't have any scripts favorited!");
@@ -293,7 +381,7 @@ export default {
         }
 
         favoriteScripts.value = scripts
-          .map(script => ({
+          .map((script) => ({
             label: script.name,
             value: script.id,
             timeout: script.default_timeout,
@@ -312,7 +400,11 @@ export default {
 
       try {
         const result = await editAgent(agent.agent_id, data);
-        notifySuccess(`Maintenance mode was ${agent.maintenance_mode ? "disabled" : "enabled"} on ${agent.hostname}`);
+        notifySuccess(
+          `Maintenance mode was ${
+            agent.maintenance_mode ? "disabled" : "enabled"
+          } on ${agent.hostname}`
+        );
         store.commit("setRefreshSummaryTab", true);
         refreshDashboard();
       } catch (e) {
@@ -430,17 +522,20 @@ export default {
         prompt: {
           model: "",
           type: "text",
-          isValid: val => val === "yes",
+          isValid: (val) => val === "yes",
         },
         cancel: true,
         ok: { label: "Uninstall", color: "negative" },
         persistent: true,
         html: true,
-      }).onOk(async val => {
+      }).onOk(async (val) => {
         try {
           const data = await removeAgent(agent.agent_id);
           notifySuccess(data);
-          refreshDashboard(false /* clearTreeSelected */, true /* clearSubTable */);
+          refreshDashboard(
+            false /* clearTreeSelected */,
+            true /* clearSubTable */
+          );
         } catch (e) {
           console.error(e);
         }
@@ -459,6 +554,8 @@ export default {
       runRemoteBackground,
       getURLActions,
       runURLAction,
+      showAddAgentToGroup,
+      showRemoveAgentFromGroup,
       showSendCommand,
       showRunScript,
       getFavoriteScripts,
@@ -471,6 +568,8 @@ export default {
       showPolicyAdd,
       showAgentRecovery,
       pingAgent,
+      filter,
+      get_group,
     };
   },
 };

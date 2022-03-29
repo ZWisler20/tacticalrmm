@@ -1,5 +1,5 @@
-import { createStore } from 'vuex'
-import { Screen, Dark, LoadingBar } from 'quasar'
+import { createStore } from "vuex";
+import { Screen, Dark, LoadingBar } from "quasar";
 import axios from "axios";
 
 export default function () {
@@ -9,9 +9,12 @@ export default function () {
         username: localStorage.getItem("user_name") || null,
         token: localStorage.getItem("access_token") || null,
         tree: [],
+        groupTree: [],
         agents: [],
         treeReady: false,
+        groupTreeReady: false,
         selectedTree: "",
+        selectedGroupTree: "",
         selectedRow: null,
         agentPlatform: "windows",
         agentTableLoading: false,
@@ -24,13 +27,14 @@ export default function () {
         agentUrlAction: null,
         defaultAgentTblTab: "server",
         clientTreeSort: "alphafail",
+        groupTreeSort: "alphafail",
         clientTreeSplitter: 20,
         noCodeSign: false,
         hosted: false,
         clearSearchWhenSwitching: false,
         currentTRMMVersion: null,
-        latestTRMMVersion: null
-      }
+        latestTRMMVersion: null,
+      };
     },
     getters: {
       clientTreeSplitterModel(state) {
@@ -46,6 +50,9 @@ export default function () {
         return state.showCommunityScripts;
       },
       allClientsSelected(state) {
+        return !state.selectedTree;
+      },
+      allGroupsSelected(state) {
         return !state.selectedTree;
       },
     },
@@ -71,6 +78,10 @@ export default function () {
         state.tree = treebar;
         state.treeReady = true;
       },
+      loadGroupTree(state, treebar) {
+        state.groupTree = treebar;
+        state.groupTreeReady = true;
+      },
       destroySubTable(state) {
         state.selectedRow = null;
       },
@@ -78,7 +89,7 @@ export default function () {
         state.needrefresh = action;
       },
       SET_SPLITTER(state, val) {
-        // top toolbar is 50px. Filebar is 40px and agent filter tabs are 44px 
+        // top toolbar is 50px. Filebar is 40px and agent filter tabs are 44px
         state.tableHeight = `${Screen.height - 50 - 40 - 78 - val}px`;
 
         // q-tabs are 37px
@@ -88,82 +99,89 @@ export default function () {
         state.clientTreeSplitter = val;
       },
       setShowCommunityScripts(state, show) {
-        state.showCommunityScripts = show
+        state.showCommunityScripts = show;
       },
       SET_AGENT_DBLCLICK_ACTION(state, action) {
-        state.agentDblClickAction = action
+        state.agentDblClickAction = action;
       },
       SET_URL_ACTION(state, action) {
-        state.agentUrlAction = action
+        state.agentUrlAction = action;
       },
       SET_DEFAULT_AGENT_TBL_TAB(state, tab) {
-        state.defaultAgentTblTab = tab
+        state.defaultAgentTblTab = tab;
       },
       SET_CLIENT_TREE_SORT(state, val) {
-        state.clientTreeSort = val
+        state.clientTreeSort = val;
       },
       SET_HOSTED(state, val) {
-        state.hosted = val
+        state.hosted = val;
       },
       setClearSearchWhenSwitching(state, val) {
-        state.clearSearchWhenSwitching = val
+        state.clearSearchWhenSwitching = val;
       },
       setLatestTRMMVersion(state, val) {
-        state.latestTRMMVersion = val
+        state.latestTRMMVersion = val;
       },
       setCurrentTRMMVersion(state, val) {
-        state.currentTRMMVersion = val
+        state.currentTRMMVersion = val;
       },
       setAgents(state, agents) {
-        state.agents = agents
+        state.agents = agents;
       },
       setRefreshSummaryTab(state, val) {
-        state.refreshSummaryTab = val
+        state.refreshSummaryTab = val;
       },
       setSelectedTree(state, val) {
-        state.selectedTree = val
-      }
+        state.selectedTree = val;
+      },
     },
     actions: {
       setClientTreeSplitter(context, val) {
-        axios.patch("/accounts/users/ui/", { client_tree_splitter: Math.trunc(val) }).then(r => {
-          context.commit("SET_CLIENT_SPLITTER", val)
-        })
-          .catch(e => { })
+        axios
+          .patch("/accounts/users/ui/", {
+            client_tree_splitter: Math.trunc(val),
+          })
+          .then((r) => {
+            context.commit("SET_CLIENT_SPLITTER", val);
+          })
+          .catch((e) => {});
       },
       setShowCommunityScripts(context, data) {
-        axios.patch("/accounts/users/ui/", { show_community_scripts: data }).then(r => {
-          context.commit("setShowCommunityScripts", data)
-        })
-          .catch(e => { })
+        axios
+          .patch("/accounts/users/ui/", { show_community_scripts: data })
+          .then((r) => {
+            context.commit("setShowCommunityScripts", data);
+          })
+          .catch((e) => {});
       },
       refreshDashboard({ state, commit, dispatch }, clearTreeSelected = false) {
         if (clearTreeSelected || !state.selectedTree) {
-          dispatch("loadAgents")
-          commit("setSelectedTree", "")
-        }
-        else if (state.selectedTree.includes("Client")) {
-          dispatch("loadAgents", `?client=${state.selectedTree.split("|")[1]}`)
-        }
-        else if (state.selectedTree.includes("Site")) {
-          dispatch("loadAgents", `?site=${state.selectedTree.split("|")[1]}`)
+          dispatch("loadAgents");
+          commit("setSelectedTree", "");
+        } else if (state.selectedTree.includes("Client")) {
+          dispatch("loadAgents", `?client=${state.selectedTree.split("|")[1]}`);
+        } else if (state.selectedTree.includes("Site")) {
+          dispatch("loadAgents", `?site=${state.selectedTree.split("|")[1]}`);
+        } else if (state.selectedTree.includes("Group")) {
+          dispatch("loadAgents", `?group=${state.selectedTree.split("|")[1]}`);
         } else {
-          console.error("refreshDashboard has incorrect parameters")
-          return
+          console.error("refreshDashboard has incorrect parameters");
+          return;
         }
 
-        if (clearTreeSelected) commit("destroySubTable")
+        if (clearTreeSelected) commit("destroySubTable");
 
         dispatch("loadTree");
+        dispatch("loadGroupTree");
         dispatch("getDashInfo", false);
       },
       async loadAgents(context, params = null) {
         context.commit("AGENT_TABLE_LOADING", true);
         try {
-          const { data } = await axios.get(`/agents/${params ? params : ""}`)
+          const { data } = await axios.get(`/agents/${params ? params : ""}`);
           context.commit("setAgents", data);
         } catch (e) {
-          console.error(e)
+          console.error(e);
         }
 
         context.commit("AGENT_TABLE_LOADING", false);
@@ -172,8 +190,14 @@ export default function () {
         const { data } = await axios.get("/core/dashinfo/");
         if (edited) {
           LoadingBar.setDefaults({ color: data.loading_bar_color });
-          context.commit("setClearSearchWhenSwitching", data.clear_search_when_switching);
-          context.commit("SET_DEFAULT_AGENT_TBL_TAB", data.default_agent_tbl_tab);
+          context.commit(
+            "setClearSearchWhenSwitching",
+            data.clear_search_when_switching
+          );
+          context.commit(
+            "SET_DEFAULT_AGENT_TBL_TAB",
+            data.default_agent_tbl_tab
+          );
           context.commit("SET_CLIENT_TREE_SORT", data.client_tree_sort);
           context.commit("SET_CLIENT_SPLITTER", data.client_tree_splitter);
         }
@@ -186,85 +210,118 @@ export default function () {
         context.commit("SET_HOSTED", data.hosted);
       },
       loadTree({ commit, state }) {
-        axios.get("/clients/").then(r => {
+        axios
+          .get("/clients/")
+          .then((r) => {
+            if (r.data.length === 0) {
+              this.$router.push({ name: "InitialSetup" });
+            }
 
-          if (r.data.length === 0) {
-            this.$router.push({ name: "InitialSetup" });
-          }
+            let output = [];
+            for (let client of r.data) {
+              let childSites = [];
+              for (let site of client.sites) {
+                let siteNode = {
+                  label: site.name,
+                  id: site.id,
+                  raw: `Site|${site.id}`,
+                  header: "generic",
+                  icon: "apartment",
+                  selectable: true,
+                  site: site,
+                };
 
-          let output = [];
-          for (let client of r.data) {
+                if (site.maintenance_mode) {
+                  siteNode["color"] = "green";
+                } else if (site.failing_checks.error) {
+                  siteNode["color"] = "negative";
+                } else if (site.failing_checks.warning) {
+                  siteNode["color"] = "warning";
+                }
 
-            let childSites = [];
-            for (let site of client.sites) {
-
-              let siteNode = {
-                label: site.name,
-                id: site.id,
-                raw: `Site|${site.id}`,
-                header: "generic",
-                icon: "apartment",
-                selectable: true,
-                site: site
+                childSites.push(siteNode);
               }
 
-              if (site.maintenance_mode) { siteNode["color"] = "green" }
-              else if (site.failing_checks.error) { siteNode["color"] = "negative" }
-              else if (site.failing_checks.warning) { siteNode["color"] = "warning" }
+              let clientNode = {
+                label: client.name,
+                id: client.id,
+                raw: `Client|${client.id}`,
+                header: "root",
+                icon: "business",
+                children: childSites,
+                client: client,
+              };
 
-              childSites.push(siteNode);
+              if (client.maintenance_mode) clientNode["color"] = "green";
+              else if (client.failing_checks.error) {
+                clientNode["color"] = "negative";
+              } else if (client.failing_checks.warning) {
+                clientNode["color"] = "warning";
+              }
+
+              output.push(clientNode);
             }
 
-            let clientNode = {
-              label: client.name,
-              id: client.id,
-              raw: `Client|${client.id}`,
-              header: "root",
-              icon: "business",
-              children: childSites,
-              client: client
+            if (state.clientTreeSort === "alphafail") {
+              // move failing clients to the top
+              const failing = output.filter(
+                (i) => i.color === "negative" || i.color === "warning"
+              );
+              const ok = output.filter(
+                (i) => i.color !== "negative" && i.color !== "warning"
+              );
+              const sortedByFailing = [...failing, ...ok];
+              commit("loadTree", sortedByFailing);
+            } else {
+              commit("loadTree", output);
+            }
+          })
+          .catch((e) => {
+            state.treeReady = true;
+          });
+      },
+      loadGroupTree({ commit, state }) {
+        axios
+          .get("/groups/")
+          .then((r) => {
+            let output = [];
+            for (let group of r.data) {
+              let groupNode = {
+                label: group.name,
+                id: group.id,
+                raw: `Group|${group.id}`,
+                header: "root",
+                icon: "mdi-account-group-outline",
+                group: group,
+              };
+              output.push(groupNode);
             }
 
-            if (client.maintenance_mode) clientNode["color"] = "green"
-            else if (client.failing_checks.error) { clientNode["color"] = "negative" }
-            else if (client.failing_checks.warning) { clientNode["color"] = "warning" }
-
-            output.push(clientNode);
-          }
-
-
-          if (state.clientTreeSort === "alphafail") {
-            // move failing clients to the top
-            const failing = output.filter(i => i.color === "negative" || i.color === "warning");
-            const ok = output.filter(i => i.color !== "negative" && i.color !== "warning");
-            const sortedByFailing = [...failing, ...ok];
-            commit("loadTree", sortedByFailing);
-          } else {
-            commit("loadTree", output);
-          }
-
-        })
-          .catch(e => {
-            state.treeReady = true
+            commit("loadGroupTree", output);
+          })
+          .catch((e) => {
+            state.groupTreeReady = true;
           });
       },
       checkVer(context) {
-        axios.get("/core/version/").then(r => {
-          const version = r.data;
+        axios
+          .get("/core/version/")
+          .then((r) => {
+            const version = r.data;
 
-          if (localStorage.getItem("rmmver")) {
-            if (localStorage.getItem("rmmver") === version) {
-              return;
+            if (localStorage.getItem("rmmver")) {
+              if (localStorage.getItem("rmmver") === version) {
+                return;
+              } else {
+                localStorage.setItem("rmmver", "0.0.1");
+                context.commit("SET_REFRESH_NEEDED", true);
+              }
             } else {
-              localStorage.setItem("rmmver", "0.0.1");
-              context.commit("SET_REFRESH_NEEDED", true);
+              localStorage.setItem("rmmver", version);
+              return;
             }
-          } else {
-            localStorage.setItem("rmmver", version);
-            return;
-          }
-        })
-          .catch(e => { })
+          })
+          .catch((e) => {});
       },
       reload() {
         localStorage.removeItem("rmmver");
@@ -274,7 +331,7 @@ export default function () {
         return new Promise((resolve, reject) => {
           axios
             .post("/login/", credentials)
-            .then(response => {
+            .then((response) => {
               const token = response.data.token;
               const username = credentials.username;
               localStorage.setItem("access_token", token);
@@ -282,7 +339,7 @@ export default function () {
               context.commit("retrieveToken", { token, username });
               resolve(response);
             })
-            .catch(e => { })
+            .catch((e) => {});
         });
       },
       destroyToken(context) {
@@ -290,23 +347,22 @@ export default function () {
           return new Promise((resolve, reject) => {
             axios
               .post("/logout/")
-              .then(response => {
+              .then((response) => {
                 localStorage.removeItem("access_token");
                 localStorage.removeItem("user_name");
                 context.commit("destroyCommit");
                 resolve(response);
               })
-              .catch(error => {
+              .catch((error) => {
                 localStorage.removeItem("access_token");
                 localStorage.removeItem("user_name");
                 context.commit("destroyCommit");
               });
           });
         }
-      }
-    }
+      },
+    },
   });
 
   return Store;
 }
-

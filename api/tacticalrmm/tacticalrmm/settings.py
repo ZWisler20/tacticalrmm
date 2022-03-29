@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     "accounts",
     "apiv3",
     "clients",
+    "groups",
     "agents",
     "checks",
     "services",
